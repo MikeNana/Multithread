@@ -1,105 +1,75 @@
-#include <boost/thread/thread.hpp>
-#include <boost/bind.hpp>
+//#include <boost/thread/thread.hpp>
+//#include <boost/bind.hpp>
+//对于多线程的程序来说，测试用例规模太小有时候看不出问题
 #include <iostream>
 #include <stack>
- 
- 
-using namespace std;
-class buffer  
-{  
-    private:  
-        boost::mutex mu, io_mu; //互斥变量，配合条件变量来使用的
-		
-        boost::condition_variable_any cond_get;  //写入条件变量
-	    boost::condition_variable_any cond_put;  //读取条件变量
-		
-        std::stack<int> stk;                    //栈容器
-        int un_read, capacity;  
-  
-        bool is_full()                         //满条件
-        {  
-            return un_read == capacity;  
-        }  
-        bool is_empty()                       //栈为空
-        {  
-            return un_read == 0;  
-        }  
-	
-    public:  
-        buffer(size_t n):un_read(0), capacity(n){}  
-        void put(int x)  
-        {  
-            {  										
-               boost:: mutex::scoped_lock lock(mu);                     //锁住后,进行条件变量的检测
-                while(is_full())  					//判断条件，为啥要用while ？ 不用if?
-                {  
-                    {  								
-                        boost::mutex::scoped_lock lock(io_mu);  
-                        std::cout << "full waiting..." << std::endl;  
-                    }  
-                    cond_put.wait(mu);  
-                }                     
-                stk.push(x);  //stack容器不满的时候,push进去
-                {  
-                    boost::mutex::scoped_lock lock(io_mu);  
-                    std::cout << "put " << x << std::endl;  
-                }  
-                ++un_read;  //push 增加一个计数
-            }  
-            cond_get.notify_one();  //唤醒某个被阻塞的（如果有）消费者线程来读取数
-        }  
-        void get(int& x)  
-        {  
-            {  
-                boost::mutex::scoped_lock lock(mu);  
-  
-                while(is_empty())  
-                {  
-                    {  
-                        boost::mutex::scoped_lock lock(io_mu);  
-                        std::cout << "empty waiting..." << std::endl;  
-                    }  
-  
-                    cond_get.wait(mu);  
-                }  
-                --un_read;  
-                x = stk.top();  
-                {  
-                    boost::mutex::scoped_lock lock(io_mu);  
-                    std::cout << "get " << x << std::endl;  
-                }  
-                stk.pop();  
-            }  
-            cond_put.notify_one();  //只通知其中的某一个线程
-        }  
-};  
-void producer(int n, buffer& buf)  
-{  
-    for(int i = 0; i < n; ++i)  
-    {  
-        buf.put(i);  
-    }  
+#include <thread>
+#include <atomic>
+#include <functional>
+#include <mutex>
+#include <condition_variable>
+#include <memory>
+#include <future>
+#include <cassert>
+#include <vector>
+#include <exception>
+
+using std::cout;
+using std::endl;
+using std::thread;
+using std::mutex;
+using std::timed_mutex;
+using std::unique_lock;
+using std::vector;
+using std::defer_lock;
+using std::condition_variable;
+using std::string;
+using std::future;
+using std::promise;
+using std::move;
+using std::cin;
+using std::packaged_task;
+using std::async;
+using std::atomic;
+using std::atomic_flag;
+
+mutex mutex1;
+int cargo = 0;//生产者线程和消费者线程的共享变量
+condition_variable cv;
+bool processed = false; //；表示数据是否处理完成　
+string data = "example data";
+promise<int> prom;
+atomic<bool> ready(false);
+atomic_flag winner = ATOMIC_FLAG_INIT;
+atomic_flag self = ATOMIC_FLAG_INIT;
+
+void f(int id)
+{
+    for(int i = 0; i < 100; ++i)
+    {
+        //当标志位处于false状态时，第一次拿到锁，不会进入while循环，如果其他线程在锁已经被占据的情况下想拿锁
+        //则会进入while循环
+        //当拿到锁的线程clear标志位状态时，其他线程重新竞争锁，变为false,退出while循环
+        //这就是自旋锁
+        while(self.test_and_set(std::memory_order_acquire));    
+        cout << "Output from thread " << id << endl;
+        self.clear(std::memory_order_release);
+    }
 }
-void consumer(int n, buffer& buf)  
-{  
-    int x;  
-    for(int i = 0; i < n; ++i)  
-    {  
-        buf.get(x);  
-    }  
-}  
-  
-int main()  
-{  
-   buffer buf(5);  
-  
-   boost::thread t1(producer, 10, ref(buf));  
-   boost::thread t2(producer, 10, ref(buf));
-   boost::thread t3(consumer, 20, ref(buf));  
-  
-   t1.join();  
-   t2.join();  
-   t3.join();  
-  
-   return 0;  
-}  
+atomic<int> foo = 0;
+void set_foo(int x)
+{
+    foo = x;
+}
+void print_foo()
+{
+    while(foo == 0)
+        std::this_thread::yield();
+    cout << foo << endl;
+}
+int main ()
+{
+    vector<thread> threads;
+
+    return 0;
+}

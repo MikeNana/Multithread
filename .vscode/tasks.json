@@ -1,0 +1,25 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build",
+            "type": "shell",
+            "command": "g++",
+            "args":[
+                "-g",
+                "-o",
+                "thread_safe_counter",
+                "-I/usr/local/include/boost_1_71_0",
+                "-L/usr/local/lib/boost_1_71_0",
+                "thread_safe_counter.cpp",
+                "-lboost_thread",
+                "-lpthread",
+                "-lboost_system"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ]
+}
