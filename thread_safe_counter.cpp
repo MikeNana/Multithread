@@ -6,7 +6,7 @@
 using std::mutex;
 using std::unique_lock;
 
-class Counter:boost::noncopyable
+class Counter:boost::noncopyable    //表示将拷贝构造函数和拷贝赋值函数设置为不可访问
 {
     public:
         Counter():value_(0), lck(mutex_){}
@@ -28,10 +28,4 @@ int Counter::getAndIncrease()
     lck.lock();
     int ret = value_++;
     return ret;
-}
-
-int main()
-{
-    std::cout << 1 << std::endl;
-    return 0;
 }
